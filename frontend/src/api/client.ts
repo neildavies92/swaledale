@@ -1,4 +1,24 @@
-import type { Goal, GoalInput, JointAccount, Member, MemberBudget, MoneyLabelInput, Summary } from './types';
+import type {
+  Goal,
+  GoalInput,
+  JointAccount,
+  LoginInput,
+  Member,
+  MemberBudget,
+  MoneyLabelInput,
+  RegisterInput,
+  Summary,
+  User,
+} from './types';
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -10,12 +30,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ error: response.statusText }));
-    throw new Error(body.error ?? 'Request failed');
+    throw new ApiError(response.status, body.error ?? 'Request failed');
   }
   return response.json() as Promise<T>;
 }
 
 export const api = {
+  me: () => request<User>('/api/auth/me'),
+  register: (input: RegisterInput) =>
+    request<User>('/api/auth/register', { method: 'POST', body: JSON.stringify(input) }),
+  login: (input: LoginInput) =>
+    request<User>('/api/auth/login', { method: 'POST', body: JSON.stringify(input) }),
+  logout: () => request<{ status: string }>('/api/auth/logout', { method: 'POST' }),
   summary: () => request<Summary>('/api/summary'),
   members: () => request<Member[]>('/api/members'),
   memberBudget: (memberId: number) => request<MemberBudget>(`/api/members/${memberId}/budget`),
@@ -37,4 +63,3 @@ export const api = {
       body: JSON.stringify(input),
     }),
 };
-

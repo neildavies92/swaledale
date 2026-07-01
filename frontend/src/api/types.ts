@@ -98,6 +98,26 @@ export type Summary = {
   totalSavings: Money;
 };
 
+export type User = {
+  id: number;
+  householdId: number;
+  memberId: number | null;
+  name: string;
+  email: string;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type RegisterInput = {
+  name: string;
+  email: string;
+  password: string;
+  householdName: string;
+};
+
 export type MoneyLabelInput = {
   label: string;
   amount: Money;
