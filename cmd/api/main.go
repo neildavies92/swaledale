@@ -29,7 +29,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           httpapi.NewRouter(db),
+		Handler:           httpapi.NewRouter(db, httpapi.Options{SecureCookies: cfg.SecureCookies}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -7,10 +7,14 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neildavies/swaledale/internal/auth"
 	"github.com/neildavies/swaledale/internal/domain"
 )
 
 const SourceURL = "https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit"
+
+// DevPassword is the shared password for the seeded dev accounts.
+const DevPassword = "swaledale-dev"
 
 type memberRef struct {
 	ID   int64
@@ -57,6 +61,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	if err := insertJointAccount(ctx, tx, snapshotID, members); err != nil {
+		return err
+	}
+	if err := insertUsers(ctx, tx, householdID, members); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -256,6 +263,30 @@ func insertGoals(ctx context.Context, tx pgx.Tx, snapshotID int64, members map[s
 			INSERT INTO household_goals (snapshot_id, owner_member_id, name, target_pence, current_pence, notes)
 			VALUES ($1, $2, $3, $4, $5, $6)
 		`, snapshotID, member.ID, row.name, int64(row.target), int64(row.current), row.notes); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertUsers(ctx context.Context, tx pgx.Tx, householdID int64, members map[string]memberRef) error {
+	passwordHash, err := auth.HashPassword(DevPassword)
+	if err != nil {
+		return err
+	}
+	rows := []struct {
+		member string
+		email  string
+	}{
+		{member: "Neil", email: "neil@swaledale.local"},
+		{member: "Katie", email: "katie@swaledale.local"},
+	}
+	for _, row := range rows {
+		member := members[row.member]
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO users (household_id, member_id, name, email, password_hash)
+			VALUES ($1, $2, $3, $4, $5)
+		`, householdID, member.ID, member.Name, row.email, passwordHash); err != nil {
 			return err
 		}
 	}
