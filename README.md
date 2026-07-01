@@ -9,6 +9,7 @@ The first release focuses on spreadsheet parity:
 - emergency fund and runway goals
 - editable recurring bill/saving amounts
 - Postgres-backed data seeded from the original Google Sheet snapshot
+- user registration and sign-in with per-household data isolation
 
 ## Stack
 
@@ -47,6 +48,18 @@ npm run dev
 
 Then open `http://localhost:5173`.
 
+## Accounts
+
+All budget data is scoped to a household. Registering creates a fresh household with
+an empty starter budget; signing in with a seeded dev account opens the spreadsheet
+snapshot household:
+
+- `neil@swaledale.local` / `swaledale-dev`
+- `katie@swaledale.local` / `swaledale-dev`
+
+Sessions are 30-day HttpOnly cookies. Set `SECURE_COOKIES=true` when serving over
+HTTPS.
+
 ## Useful Commands
 
 ```sh
@@ -62,6 +75,10 @@ make lint       # run backend tests and frontend lint
 ## API
 
 - `GET /healthz`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `GET /api/summary`
 - `GET /api/members`
 - `GET /api/members/{id}/budget`
@@ -70,6 +87,8 @@ make lint       # run backend tests and frontend lint
 - `PUT /api/joint-account/items/{itemId}`
 - `GET /api/goals`
 - `PUT /api/goals/{id}`
+
+All `/api` routes other than register/login require a session cookie.
 
 ## Project Docs
 

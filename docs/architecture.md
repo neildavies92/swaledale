@@ -19,9 +19,20 @@ Postgres runs through Docker Compose.
 - `internal/store`: persistence interface and Postgres implementation.
 - `internal/seed`: structured seed data.
 
+## Auth
+
+- Users register with email and password (bcrypt hashed); registration bootstraps a
+  household, a member for the user, and an empty starter snapshot.
+- Sessions are random tokens stored hashed in `sessions`, delivered as a 30-day
+  HttpOnly `swaledale_session` cookie.
+- Session middleware resolves the user, and every query and update is scoped to the
+  user's household.
+
 ## Database Model
 
 - `households`
+- `users`
+- `sessions`
 - `members`
 - `monthly_snapshots`
 - `income_entries`
@@ -36,6 +47,10 @@ Money is stored as integer pence.
 
 ## API Surface
 
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 - `GET /api/summary`
 - `GET /api/members`
 - `GET /api/members/{id}/budget`
@@ -47,7 +62,9 @@ Money is stored as integer pence.
 
 ## Frontend Routes
 
-- `/`: household dashboard
+- `/login`: sign in
+- `/register`: create an account and household
+- `/`: household dashboard (all routes below require a session)
 - `/members/:memberId`: member budget
 - `/joint-account`: shared bills and contributions
 - `/goals`: runway and emergency targets
