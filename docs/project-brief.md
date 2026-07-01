@@ -16,11 +16,12 @@ The first audience is the household: Neil and Katie. The app should feel calm, p
 - Show the joint account and shared household bills.
 - Show runway and emergency fund goals.
 - Allow basic edits to labels and monthly amounts.
+- User registration and sign-in, with data scoped to each household.
 
 ## Non-Goals
 
 - Bank imports or Open Banking integrations.
-- Authentication and user roles.
+- Roles or permissions beyond household membership.
 - Transaction-level reconciliation.
 - Production deployment.
 - Live sync back to Google Sheets.

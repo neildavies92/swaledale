@@ -12,7 +12,8 @@ import (
 )
 
 type API struct {
-	store store.Store
+	store         store.Store
+	secureCookies bool
 }
 
 func (api *API) health(w http.ResponseWriter, r *http.Request) {
@@ -20,12 +21,12 @@ func (api *API) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) summary(w http.ResponseWriter, r *http.Request) {
-	summary, err := api.store.Summary(r.Context())
+	summary, err := api.store.Summary(r.Context(), userFrom(r.Context()).HouseholdID)
 	respond(w, summary, err)
 }
 
 func (api *API) members(w http.ResponseWriter, r *http.Request) {
-	members, err := api.store.Members(r.Context())
+	members, err := api.store.Members(r.Context(), userFrom(r.Context()).HouseholdID)
 	respond(w, members, err)
 }
 
@@ -34,7 +35,7 @@ func (api *API) memberBudget(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	budget, err := api.store.MemberBudget(r.Context(), memberID)
+	budget, err := api.store.MemberBudget(r.Context(), userFrom(r.Context()).HouseholdID, memberID)
 	respond(w, budget, err)
 }
 
@@ -51,12 +52,12 @@ func (api *API) updateBudgetItem(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &input) {
 		return
 	}
-	budget, err := api.store.UpdateBudgetItem(r.Context(), memberID, itemID, input)
+	budget, err := api.store.UpdateBudgetItem(r.Context(), userFrom(r.Context()).HouseholdID, memberID, itemID, input)
 	respond(w, budget, err)
 }
 
 func (api *API) jointAccount(w http.ResponseWriter, r *http.Request) {
-	joint, err := api.store.JointAccount(r.Context())
+	joint, err := api.store.JointAccount(r.Context(), userFrom(r.Context()).HouseholdID)
 	respond(w, joint, err)
 }
 
@@ -69,12 +70,12 @@ func (api *API) updateJointAccountItem(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &input) {
 		return
 	}
-	joint, err := api.store.UpdateJointAccountItem(r.Context(), itemID, input)
+	joint, err := api.store.UpdateJointAccountItem(r.Context(), userFrom(r.Context()).HouseholdID, itemID, input)
 	respond(w, joint, err)
 }
 
 func (api *API) goals(w http.ResponseWriter, r *http.Request) {
-	goals, err := api.store.Goals(r.Context())
+	goals, err := api.store.Goals(r.Context(), userFrom(r.Context()).HouseholdID)
 	respond(w, goals, err)
 }
 
@@ -87,7 +88,7 @@ func (api *API) updateGoal(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &input) {
 		return
 	}
-	goals, err := api.store.UpdateGoal(r.Context(), goalID, input)
+	goals, err := api.store.UpdateGoal(r.Context(), userFrom(r.Context()).HouseholdID, goalID, input)
 	respond(w, goals, err)
 }
 

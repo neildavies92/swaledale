@@ -2,20 +2,36 @@ package store
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/neildavies/swaledale/internal/domain"
 )
 
+var ErrEmailTaken = errors.New("email already registered")
+
 type Store interface {
 	Close()
-	Summary(ctx context.Context) (domain.Summary, error)
-	Members(ctx context.Context) ([]domain.Member, error)
-	MemberBudget(ctx context.Context, memberID int64) (domain.MemberBudget, error)
-	UpdateBudgetItem(ctx context.Context, memberID int64, itemID int64, input UpdateBudgetItemInput) (domain.MemberBudget, error)
-	JointAccount(ctx context.Context) (domain.JointAccount, error)
-	UpdateJointAccountItem(ctx context.Context, itemID int64, input UpdateMoneyLabelInput) (domain.JointAccount, error)
-	Goals(ctx context.Context) ([]domain.Goal, error)
-	UpdateGoal(ctx context.Context, goalID int64, input UpdateGoalInput) ([]domain.Goal, error)
+	RegisterUser(ctx context.Context, input RegisterUserInput) (domain.User, error)
+	UserByEmail(ctx context.Context, email string) (domain.User, string, error)
+	CreateSession(ctx context.Context, tokenHash string, userID int64, expiresAt time.Time) error
+	UserBySession(ctx context.Context, tokenHash string) (domain.User, error)
+	DeleteSession(ctx context.Context, tokenHash string) error
+	Summary(ctx context.Context, householdID int64) (domain.Summary, error)
+	Members(ctx context.Context, householdID int64) ([]domain.Member, error)
+	MemberBudget(ctx context.Context, householdID int64, memberID int64) (domain.MemberBudget, error)
+	UpdateBudgetItem(ctx context.Context, householdID int64, memberID int64, itemID int64, input UpdateBudgetItemInput) (domain.MemberBudget, error)
+	JointAccount(ctx context.Context, householdID int64) (domain.JointAccount, error)
+	UpdateJointAccountItem(ctx context.Context, householdID int64, itemID int64, input UpdateMoneyLabelInput) (domain.JointAccount, error)
+	Goals(ctx context.Context, householdID int64) ([]domain.Goal, error)
+	UpdateGoal(ctx context.Context, householdID int64, goalID int64, input UpdateGoalInput) ([]domain.Goal, error)
+}
+
+type RegisterUserInput struct {
+	Name          string
+	Email         string
+	PasswordHash  string
+	HouseholdName string
 }
 
 type UpdateMoneyLabelInput struct {

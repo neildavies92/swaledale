@@ -15,6 +15,14 @@ type Snapshot struct {
 	SourceURL string    `json:"sourceUrl"`
 }
 
+type User struct {
+	ID          int64  `json:"id"`
+	HouseholdID int64  `json:"householdId"`
+	MemberID    *int64 `json:"memberId"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+}
+
 type Member struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`

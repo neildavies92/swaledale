@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neildavies/swaledale/internal/domain"
 )
@@ -31,36 +32,125 @@ func (s *PostgresStore) Close() {
 	s.pool.Close()
 }
 
-func (s *PostgresStore) Summary(ctx context.Context) (domain.Summary, error) {
-	household, snapshot, err := s.currentContext(ctx)
+func (s *PostgresStore) RegisterUser(ctx context.Context, input RegisterUserInput) (domain.User, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.User{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	var householdID int64
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO households (name, currency)
+		VALUES ($1, 'GBP')
+		RETURNING id
+	`, input.HouseholdName).Scan(&householdID); err != nil {
+		return domain.User{}, err
+	}
+
+	var memberID int64
+	if err := tx.QueryRow(ctx, `
+		INSERT INTO members (household_id, name)
+		VALUES ($1, $2)
+		RETURNING id
+	`, householdID, input.Name).Scan(&memberID); err != nil {
+		return domain.User{}, err
+	}
+
+	month := time.Now().UTC()
+	month = time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, time.UTC)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO monthly_snapshots (household_id, name, month, source_url)
+		VALUES ($1, 'Starter Budget', $2, '')
+	`, householdID, month); err != nil {
+		return domain.User{}, err
+	}
+
+	user := domain.User{
+		HouseholdID: householdID,
+		MemberID:    &memberID,
+		Name:        input.Name,
+		Email:       input.Email,
+	}
+	err = tx.QueryRow(ctx, `
+		INSERT INTO users (household_id, member_id, name, email, password_hash)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`, householdID, memberID, input.Name, input.Email, input.PasswordHash).Scan(&user.ID)
+	if isUniqueViolation(err) {
+		return domain.User{}, ErrEmailTaken
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+	return user, tx.Commit(ctx)
+}
+
+func (s *PostgresStore) UserByEmail(ctx context.Context, email string) (domain.User, string, error) {
+	var user domain.User
+	var passwordHash string
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, household_id, member_id, name, email, password_hash
+		FROM users
+		WHERE lower(email) = lower($1)
+	`, email).Scan(&user.ID, &user.HouseholdID, &user.MemberID, &user.Name, &user.Email, &passwordHash)
+	return user, passwordHash, err
+}
+
+func (s *PostgresStore) CreateSession(ctx context.Context, tokenHash string, userID int64, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO sessions (token_hash, user_id, expires_at)
+		VALUES ($1, $2, $3)
+	`, tokenHash, userID, expiresAt)
+	return err
+}
+
+func (s *PostgresStore) UserBySession(ctx context.Context, tokenHash string) (domain.User, error) {
+	var user domain.User
+	err := s.pool.QueryRow(ctx, `
+		SELECT u.id, u.household_id, u.member_id, u.name, u.email
+		FROM sessions s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.token_hash = $1 AND s.expires_at > now()
+	`, tokenHash).Scan(&user.ID, &user.HouseholdID, &user.MemberID, &user.Name, &user.Email)
+	return user, err
+}
+
+func (s *PostgresStore) DeleteSession(ctx context.Context, tokenHash string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE token_hash = $1`, tokenHash)
+	return err
+}
+
+func (s *PostgresStore) Summary(ctx context.Context, householdID int64) (domain.Summary, error) {
+	household, snapshot, err := s.currentContext(ctx, householdID)
 	if err != nil {
 		return domain.Summary{}, err
 	}
-	members, err := s.Members(ctx)
+	members, err := s.Members(ctx, householdID)
 	if err != nil {
 		return domain.Summary{}, err
 	}
 	budgets := make([]domain.MemberBudget, 0, len(members))
 	for _, member := range members {
-		budget, err := s.MemberBudget(ctx, member.ID)
+		budget, err := s.MemberBudget(ctx, householdID, member.ID)
 		if err != nil {
 			return domain.Summary{}, err
 		}
 		budgets = append(budgets, budget)
 	}
-	goals, err := s.Goals(ctx)
+	goals, err := s.Goals(ctx, householdID)
 	if err != nil {
 		return domain.Summary{}, err
 	}
-	joint, err := s.JointAccount(ctx)
+	joint, err := s.JointAccount(ctx, householdID)
 	if err != nil {
 		return domain.Summary{}, err
 	}
 	return domain.BuildSummary(household, snapshot, budgets, goals, joint), nil
 }
 
-func (s *PostgresStore) Members(ctx context.Context) ([]domain.Member, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, name FROM members ORDER BY id`)
+func (s *PostgresStore) Members(ctx context.Context, householdID int64) ([]domain.Member, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id, name FROM members WHERE household_id = $1 ORDER BY id`, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,12 +167,12 @@ func (s *PostgresStore) Members(ctx context.Context) ([]domain.Member, error) {
 	return members, rows.Err()
 }
 
-func (s *PostgresStore) MemberBudget(ctx context.Context, memberID int64) (domain.MemberBudget, error) {
-	member, err := s.member(ctx, memberID)
+func (s *PostgresStore) MemberBudget(ctx context.Context, householdID int64, memberID int64) (domain.MemberBudget, error) {
+	member, err := s.member(ctx, householdID, memberID)
 	if err != nil {
 		return domain.MemberBudget{}, err
 	}
-	snapshotID, err := s.currentSnapshotID(ctx)
+	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
 		return domain.MemberBudget{}, err
 	}
@@ -101,7 +191,10 @@ func (s *PostgresStore) MemberBudget(ctx context.Context, memberID int64) (domai
 	return domain.BuildMemberBudget(member, income, items, allocations), nil
 }
 
-func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, memberID int64, itemID int64, input UpdateBudgetItemInput) (domain.MemberBudget, error) {
+func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, householdID int64, memberID int64, itemID int64, input UpdateBudgetItemInput) (domain.MemberBudget, error) {
+	if _, err := s.member(ctx, householdID, memberID); err != nil {
+		return domain.MemberBudget{}, err
+	}
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE budget_items
 		SET label = $3, amount_pence = $4
@@ -113,11 +206,11 @@ func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, memberID int64, it
 	if tag.RowsAffected() == 0 {
 		return domain.MemberBudget{}, pgx.ErrNoRows
 	}
-	return s.MemberBudget(ctx, memberID)
+	return s.MemberBudget(ctx, householdID, memberID)
 }
 
-func (s *PostgresStore) JointAccount(ctx context.Context) (domain.JointAccount, error) {
-	snapshotID, err := s.currentSnapshotID(ctx)
+func (s *PostgresStore) JointAccount(ctx context.Context, householdID int64) (domain.JointAccount, error) {
+	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
 		return domain.JointAccount{}, err
 	}
@@ -136,23 +229,24 @@ func (s *PostgresStore) JointAccount(ctx context.Context) (domain.JointAccount, 
 	return domain.BuildJointAccount(wages, items, contributions), nil
 }
 
-func (s *PostgresStore) UpdateJointAccountItem(ctx context.Context, itemID int64, input UpdateMoneyLabelInput) (domain.JointAccount, error) {
+func (s *PostgresStore) UpdateJointAccountItem(ctx context.Context, householdID int64, itemID int64, input UpdateMoneyLabelInput) (domain.JointAccount, error) {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE joint_account_items
+		UPDATE joint_account_items i
 		SET label = $2, amount_pence = $3
-		WHERE id = $1
-	`, itemID, input.Label, int64(input.Amount))
+		FROM monthly_snapshots s
+		WHERE i.id = $1 AND s.id = i.snapshot_id AND s.household_id = $4
+	`, itemID, input.Label, int64(input.Amount), householdID)
 	if err != nil {
 		return domain.JointAccount{}, err
 	}
 	if tag.RowsAffected() == 0 {
 		return domain.JointAccount{}, pgx.ErrNoRows
 	}
-	return s.JointAccount(ctx)
+	return s.JointAccount(ctx, householdID)
 }
 
-func (s *PostgresStore) Goals(ctx context.Context) ([]domain.Goal, error) {
-	snapshotID, err := s.currentSnapshotID(ctx)
+func (s *PostgresStore) Goals(ctx context.Context, householdID int64) ([]domain.Goal, error) {
+	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,22 +276,23 @@ func (s *PostgresStore) Goals(ctx context.Context) ([]domain.Goal, error) {
 	return goals, rows.Err()
 }
 
-func (s *PostgresStore) UpdateGoal(ctx context.Context, goalID int64, input UpdateGoalInput) ([]domain.Goal, error) {
+func (s *PostgresStore) UpdateGoal(ctx context.Context, householdID int64, goalID int64, input UpdateGoalInput) ([]domain.Goal, error) {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE household_goals
+		UPDATE household_goals g
 		SET name = $2, target_pence = $3, current_pence = $4, notes = $5
-		WHERE id = $1
-	`, goalID, input.Name, int64(input.Target), int64(input.Current), input.Notes)
+		FROM monthly_snapshots s
+		WHERE g.id = $1 AND s.id = g.snapshot_id AND s.household_id = $6
+	`, goalID, input.Name, int64(input.Target), int64(input.Current), input.Notes, householdID)
 	if err != nil {
 		return nil, err
 	}
 	if tag.RowsAffected() == 0 {
 		return nil, pgx.ErrNoRows
 	}
-	return s.Goals(ctx)
+	return s.Goals(ctx, householdID)
 }
 
-func (s *PostgresStore) currentContext(ctx context.Context) (domain.Household, domain.Snapshot, error) {
+func (s *PostgresStore) currentContext(ctx context.Context, householdID int64) (domain.Household, domain.Snapshot, error) {
 	var household domain.Household
 	var snapshot domain.Snapshot
 	var month time.Time
@@ -205,9 +300,10 @@ func (s *PostgresStore) currentContext(ctx context.Context) (domain.Household, d
 		SELECT h.id, h.name, h.currency, s.id, s.name, s.month, s.source_url
 		FROM monthly_snapshots s
 		JOIN households h ON h.id = s.household_id
+		WHERE h.id = $1
 		ORDER BY s.month DESC, s.id DESC
 		LIMIT 1
-	`).Scan(&household.ID, &household.Name, &household.Currency, &snapshot.ID, &snapshot.Name, &month, &snapshot.SourceURL)
+	`, householdID).Scan(&household.ID, &household.Name, &household.Currency, &snapshot.ID, &snapshot.Name, &month, &snapshot.SourceURL)
 	if err != nil {
 		return household, snapshot, fmt.Errorf("load current snapshot: %w", err)
 	}
@@ -215,19 +311,28 @@ func (s *PostgresStore) currentContext(ctx context.Context) (domain.Household, d
 	return household, snapshot, nil
 }
 
-func (s *PostgresStore) currentSnapshotID(ctx context.Context) (int64, error) {
+func (s *PostgresStore) currentSnapshotID(ctx context.Context, householdID int64) (int64, error) {
 	var id int64
-	err := s.pool.QueryRow(ctx, `SELECT id FROM monthly_snapshots ORDER BY month DESC, id DESC LIMIT 1`).Scan(&id)
+	err := s.pool.QueryRow(ctx, `
+		SELECT id FROM monthly_snapshots
+		WHERE household_id = $1
+		ORDER BY month DESC, id DESC
+		LIMIT 1
+	`, householdID).Scan(&id)
 	return id, err
 }
 
-func (s *PostgresStore) member(ctx context.Context, memberID int64) (domain.Member, error) {
+func (s *PostgresStore) member(ctx context.Context, householdID int64, memberID int64) (domain.Member, error) {
 	var member domain.Member
-	err := s.pool.QueryRow(ctx, `SELECT id, name FROM members WHERE id = $1`, memberID).Scan(&member.ID, &member.Name)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return member, err
-	}
+	err := s.pool.QueryRow(ctx, `
+		SELECT id, name FROM members WHERE id = $1 AND household_id = $2
+	`, memberID, householdID).Scan(&member.ID, &member.Name)
 	return member, err
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 func (s *PostgresStore) personalIncome(ctx context.Context, snapshotID int64, memberID int64) (domain.Money, error) {
