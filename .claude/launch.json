@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd frontend && PATH=\"$HOME/.nvm/versions/node/v24.16.0/bin:$PATH\" API_PROXY_TARGET=\"${API_PROXY_TARGET:-http://localhost:8081}\" npm run dev"
+      ],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}
