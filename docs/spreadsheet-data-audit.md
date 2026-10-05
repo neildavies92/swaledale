@@ -1,3 +1,5 @@
+> Historical reference for the original budget fixture. This is not the FIRE domain specification or active project plan; see the [project brief](project-brief.md). Spreadsheet-specific calculations described below are superseded.
+
 # Spreadsheet Data Audit
 
 ## Source

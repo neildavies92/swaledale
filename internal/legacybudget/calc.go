@@ -1,7 +1,9 @@
-package domain
+package legacybudget
 
-func SumBudgetItems(items []BudgetItem, kind string) Money {
-	var total Money
+import "github.com/neildavies/swaledale/internal/domain"
+
+func SumBudgetItems(items []BudgetItem, kind string) domain.Money {
+	var total domain.Money
 	for _, item := range items {
 		if kind == "" || item.Kind == kind {
 			total += item.Amount
@@ -10,22 +12,10 @@ func SumBudgetItems(items []BudgetItem, kind string) Money {
 	return total
 }
 
-func BuildMemberBudget(member Member, income Money, items []BudgetItem, allocations []AllocationRule) MemberBudget {
+func BuildMemberBudget(member domain.Member, income domain.Money, items []BudgetItem, allocations []AllocationRule) MemberBudget {
 	bills := SumBudgetItems(items, "bill")
 	savings := SumBudgetItems(items, "saving")
 	committed := bills + savings
-	spendable := Money(0)
-	for _, allocation := range allocations {
-		if allocation.Label == "Spendable Income" || allocation.Label == "Spendable Income - 30%" || allocation.Label == "70% - Living Expenses" {
-			spendable = allocation.Amount
-		}
-	}
-	if member.Name == "Neil" {
-		living := allocationAmount(allocations, "70% - Living Expenses")
-		if living != 0 {
-			spendable = living - bills
-		}
-	}
 	return MemberBudget{
 		Member:          member,
 		Income:          income,
@@ -35,17 +25,17 @@ func BuildMemberBudget(member Member, income Money, items []BudgetItem, allocati
 		SavingsTotal:    savings,
 		CommittedTotal:  committed,
 		Remaining:       income - committed,
-		SpendableIncome: spendable,
+		SpendableIncome: income - committed,
 	}
 }
 
-func BuildJointAccount(wages []IncomeEntry, items []JointAccountItem, contributions []JointContribution) JointAccount {
-	var total Money
+func BuildJointAccount(wages []IncomeEntry, items []JointAccountItem, contributions []JointContribution, memberCount int) JointAccount {
+	var total domain.Money
 	for i := range items {
-		items[i].PerPerson = divideRounded(items[i].Amount, 2)
+		items[i].PerPerson = divideRounded(items[i].Amount, domain.Money(memberCount))
 		total += items[i].Amount
 	}
-	var contributionsTotal Money
+	var contributionsTotal domain.Money
 	for _, contribution := range contributions {
 		contributionsTotal += contribution.Amount
 	}
@@ -54,13 +44,13 @@ func BuildJointAccount(wages []IncomeEntry, items []JointAccountItem, contributi
 		Items:         items,
 		Contributions: contributions,
 		Total:         total,
-		PerPerson:     divideRounded(total, 2),
+		PerPerson:     divideRounded(total, domain.Money(memberCount)),
 		Leftover:      contributionsTotal - total,
 	}
 }
 
-func BuildSummary(household Household, snapshot Snapshot, members []MemberBudget, goals []Goal, joint JointAccount) Summary {
-	var income, committed, remaining, savings Money
+func BuildSummary(household domain.Household, snapshot Snapshot, members []MemberBudget, goals []Goal, joint JointAccount) Summary {
+	var income, committed, remaining, savings domain.Money
 	for _, member := range members {
 		income += member.Income
 		committed += member.CommittedTotal
@@ -80,21 +70,12 @@ func BuildSummary(household Household, snapshot Snapshot, members []MemberBudget
 	}
 }
 
-func divideRounded(value Money, divisor Money) Money {
-	if divisor == 0 {
+func divideRounded(value domain.Money, divisor domain.Money) domain.Money {
+	if divisor <= 0 {
 		return 0
 	}
 	if value >= 0 {
 		return (value + divisor/2) / divisor
 	}
 	return (value - divisor/2) / divisor
-}
-
-func allocationAmount(allocations []AllocationRule, label string) Money {
-	for _, allocation := range allocations {
-		if allocation.Label == label {
-			return allocation.Amount
-		}
-	}
-	return 0
 }

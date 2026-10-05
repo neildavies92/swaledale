@@ -1,6 +1,6 @@
 # Swaledale Frontend
 
-React + TypeScript frontend for the Swaledale household finance POC.
+React + TypeScript frontend retained for Swaledale household FIRE management. Current screens still use the legacy budget API; canonical FIRE configuration and analytics are future backlog work.
 
 ## Stack
 

@@ -1,15 +1,12 @@
 # Swaledale
 
-Swaledale is a dev-only POC that turns the household bills spreadsheet into a family finance application.
+Swaledale is a provider-independent household financial independence and FIRE planning platform. The initial deployment serves one household with multiple members, personal finances and jointly owned accounts.
 
-The first release focuses on spreadsheet parity:
+The canonical Go domain now models explicit ownership, stable accounts, replaceable provider mappings, investment instruments, historical balances/holdings, transactions and derived FIRE snapshots. Providers and funds are configuration, not account identity.
 
-- member budgets for Neil and Katie
-- shared household bills in the joint account
-- emergency fund and runway goals
-- editable recurring bill/saving amounts
-- Postgres-backed data seeded from the original Google Sheet snapshot
-- user registration and sign-in with per-household data isolation
+The [FIRE Dashboard Project tab](https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit?gid=944913493#gid=944913493) is the authoritative backlog and architecture plan.
+
+FIRE-001 defines and validates the domain. FIRE persistence (FIRE-003), configuration (FIRE-024), collectors, calculations and Grafana remain future work. The running React/API screens still serve the earlier budget workflow through `internal/legacybudget`; they are not yet a FIRE dashboard. React is retained for future household/account/connector management.
 
 ## Stack
 
@@ -48,7 +45,7 @@ npm run dev
 
 Then open `http://localhost:5173`.
 
-## Accounts
+## Development sign-in
 
 All budget data is scoped to a household. Registering creates a fresh household with
 an empty starter budget; signing in with a seeded dev account opens the spreadsheet
@@ -65,7 +62,7 @@ HTTPS.
 ```sh
 make db-up      # start Postgres
 make migrate    # run database migrations
-make seed       # load the spreadsheet POC snapshot
+make seed       # reset local data and load the legacy development fixture
 make api        # run the Go API on :8080
 make frontend   # run the Vite dev server
 make test       # run backend and frontend tests
@@ -92,4 +89,4 @@ All `/api` routes other than register/login require a session cookie.
 
 ## Project Docs
 
-See [`docs/project-brief.md`](docs/project-brief.md), [`docs/architecture.md`](docs/architecture.md), [`docs/spreadsheet-data-audit.md`](docs/spreadsheet-data-audit.md), and [`docs/jira-backlog.md`](docs/jira-backlog.md).
+See the [project brief](docs/project-brief.md), [canonical architecture and persistence boundary](docs/architecture.md), and [decision log](docs/decision-log.md). The [spreadsheet audit](docs/spreadsheet-data-audit.md) is historical reference only.
