@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neildavies/swaledale/internal/domain"
+	"github.com/neildavies/swaledale/internal/legacybudget"
 )
 
 type PostgresStore struct {
@@ -121,36 +122,36 @@ func (s *PostgresStore) DeleteSession(ctx context.Context, tokenHash string) err
 	return err
 }
 
-func (s *PostgresStore) Summary(ctx context.Context, householdID int64) (domain.Summary, error) {
+func (s *PostgresStore) Summary(ctx context.Context, householdID int64) (legacybudget.Summary, error) {
 	household, snapshot, err := s.currentContext(ctx, householdID)
 	if err != nil {
-		return domain.Summary{}, err
+		return legacybudget.Summary{}, err
 	}
 	members, err := s.Members(ctx, householdID)
 	if err != nil {
-		return domain.Summary{}, err
+		return legacybudget.Summary{}, err
 	}
-	budgets := make([]domain.MemberBudget, 0, len(members))
+	budgets := make([]legacybudget.MemberBudget, 0, len(members))
 	for _, member := range members {
 		budget, err := s.MemberBudget(ctx, householdID, member.ID)
 		if err != nil {
-			return domain.Summary{}, err
+			return legacybudget.Summary{}, err
 		}
 		budgets = append(budgets, budget)
 	}
 	goals, err := s.Goals(ctx, householdID)
 	if err != nil {
-		return domain.Summary{}, err
+		return legacybudget.Summary{}, err
 	}
 	joint, err := s.JointAccount(ctx, householdID)
 	if err != nil {
-		return domain.Summary{}, err
+		return legacybudget.Summary{}, err
 	}
-	return domain.BuildSummary(household, snapshot, budgets, goals, joint), nil
+	return legacybudget.BuildSummary(household, snapshot, budgets, goals, joint), nil
 }
 
 func (s *PostgresStore) Members(ctx context.Context, householdID int64) ([]domain.Member, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id, name FROM members WHERE household_id = $1 ORDER BY id`, householdID)
+	rows, err := s.pool.Query(ctx, `SELECT id, household_id, name FROM members WHERE household_id = $1 ORDER BY id`, householdID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +160,7 @@ func (s *PostgresStore) Members(ctx context.Context, householdID int64) ([]domai
 	var members []domain.Member
 	for rows.Next() {
 		var member domain.Member
-		if err := rows.Scan(&member.ID, &member.Name); err != nil {
+		if err := rows.Scan(&member.ID, &member.HouseholdID, &member.Name); err != nil {
 			return nil, err
 		}
 		members = append(members, member)
@@ -167,33 +168,33 @@ func (s *PostgresStore) Members(ctx context.Context, householdID int64) ([]domai
 	return members, rows.Err()
 }
 
-func (s *PostgresStore) MemberBudget(ctx context.Context, householdID int64, memberID int64) (domain.MemberBudget, error) {
+func (s *PostgresStore) MemberBudget(ctx context.Context, householdID int64, memberID int64) (legacybudget.MemberBudget, error) {
 	member, err := s.member(ctx, householdID, memberID)
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	income, err := s.personalIncome(ctx, snapshotID, memberID)
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	items, err := s.budgetItems(ctx, snapshotID, memberID)
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	allocations, err := s.allocationRules(ctx, snapshotID, memberID)
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
-	return domain.BuildMemberBudget(member, income, items, allocations), nil
+	return legacybudget.BuildMemberBudget(member, income, items, allocations), nil
 }
 
-func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, householdID int64, memberID int64, itemID int64, input UpdateBudgetItemInput) (domain.MemberBudget, error) {
+func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, householdID int64, memberID int64, itemID int64, input UpdateBudgetItemInput) (legacybudget.MemberBudget, error) {
 	if _, err := s.member(ctx, householdID, memberID); err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE budget_items
@@ -201,35 +202,39 @@ func (s *PostgresStore) UpdateBudgetItem(ctx context.Context, householdID int64,
 		WHERE member_id = $1 AND id = $2
 	`, memberID, itemID, input.Label, int64(input.Amount))
 	if err != nil {
-		return domain.MemberBudget{}, err
+		return legacybudget.MemberBudget{}, err
 	}
 	if tag.RowsAffected() == 0 {
-		return domain.MemberBudget{}, pgx.ErrNoRows
+		return legacybudget.MemberBudget{}, pgx.ErrNoRows
 	}
 	return s.MemberBudget(ctx, householdID, memberID)
 }
 
-func (s *PostgresStore) JointAccount(ctx context.Context, householdID int64) (domain.JointAccount, error) {
+func (s *PostgresStore) JointAccount(ctx context.Context, householdID int64) (legacybudget.JointAccount, error) {
 	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
-		return domain.JointAccount{}, err
+		return legacybudget.JointAccount{}, err
 	}
 	wages, err := s.jointWages(ctx, snapshotID)
 	if err != nil {
-		return domain.JointAccount{}, err
+		return legacybudget.JointAccount{}, err
 	}
 	items, err := s.jointItems(ctx, snapshotID)
 	if err != nil {
-		return domain.JointAccount{}, err
+		return legacybudget.JointAccount{}, err
 	}
 	contributions, err := s.jointContributions(ctx, snapshotID)
 	if err != nil {
-		return domain.JointAccount{}, err
+		return legacybudget.JointAccount{}, err
 	}
-	return domain.BuildJointAccount(wages, items, contributions), nil
+	members, err := s.Members(ctx, householdID)
+	if err != nil {
+		return legacybudget.JointAccount{}, err
+	}
+	return legacybudget.BuildJointAccount(wages, items, contributions, len(members)), nil
 }
 
-func (s *PostgresStore) UpdateJointAccountItem(ctx context.Context, householdID int64, itemID int64, input UpdateMoneyLabelInput) (domain.JointAccount, error) {
+func (s *PostgresStore) UpdateJointAccountItem(ctx context.Context, householdID int64, itemID int64, input UpdateMoneyLabelInput) (legacybudget.JointAccount, error) {
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE joint_account_items i
 		SET label = $2, amount_pence = $3
@@ -237,15 +242,15 @@ func (s *PostgresStore) UpdateJointAccountItem(ctx context.Context, householdID 
 		WHERE i.id = $1 AND s.id = i.snapshot_id AND s.household_id = $4
 	`, itemID, input.Label, int64(input.Amount), householdID)
 	if err != nil {
-		return domain.JointAccount{}, err
+		return legacybudget.JointAccount{}, err
 	}
 	if tag.RowsAffected() == 0 {
-		return domain.JointAccount{}, pgx.ErrNoRows
+		return legacybudget.JointAccount{}, pgx.ErrNoRows
 	}
 	return s.JointAccount(ctx, householdID)
 }
 
-func (s *PostgresStore) Goals(ctx context.Context, householdID int64) ([]domain.Goal, error) {
+func (s *PostgresStore) Goals(ctx context.Context, householdID int64) ([]legacybudget.Goal, error) {
 	snapshotID, err := s.currentSnapshotID(ctx, householdID)
 	if err != nil {
 		return nil, err
@@ -262,9 +267,9 @@ func (s *PostgresStore) Goals(ctx context.Context, householdID int64) ([]domain.
 	}
 	defer rows.Close()
 
-	var goals []domain.Goal
+	var goals []legacybudget.Goal
 	for rows.Next() {
-		var goal domain.Goal
+		var goal legacybudget.Goal
 		var target, current int64
 		if err := rows.Scan(&goal.ID, &goal.Name, &goal.Owner, &target, &current, &goal.Notes); err != nil {
 			return nil, err
@@ -276,7 +281,7 @@ func (s *PostgresStore) Goals(ctx context.Context, householdID int64) ([]domain.
 	return goals, rows.Err()
 }
 
-func (s *PostgresStore) UpdateGoal(ctx context.Context, householdID int64, goalID int64, input UpdateGoalInput) ([]domain.Goal, error) {
+func (s *PostgresStore) UpdateGoal(ctx context.Context, householdID int64, goalID int64, input UpdateGoalInput) ([]legacybudget.Goal, error) {
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE household_goals g
 		SET name = $2, target_pence = $3, current_pence = $4, notes = $5
@@ -292,9 +297,9 @@ func (s *PostgresStore) UpdateGoal(ctx context.Context, householdID int64, goalI
 	return s.Goals(ctx, householdID)
 }
 
-func (s *PostgresStore) currentContext(ctx context.Context, householdID int64) (domain.Household, domain.Snapshot, error) {
+func (s *PostgresStore) currentContext(ctx context.Context, householdID int64) (domain.Household, legacybudget.Snapshot, error) {
 	var household domain.Household
-	var snapshot domain.Snapshot
+	var snapshot legacybudget.Snapshot
 	var month time.Time
 	err := s.pool.QueryRow(ctx, `
 		SELECT h.id, h.name, h.currency, s.id, s.name, s.month, s.source_url
@@ -325,8 +330,8 @@ func (s *PostgresStore) currentSnapshotID(ctx context.Context, householdID int64
 func (s *PostgresStore) member(ctx context.Context, householdID int64, memberID int64) (domain.Member, error) {
 	var member domain.Member
 	err := s.pool.QueryRow(ctx, `
-		SELECT id, name FROM members WHERE id = $1 AND household_id = $2
-	`, memberID, householdID).Scan(&member.ID, &member.Name)
+		SELECT id, household_id, name FROM members WHERE id = $1 AND household_id = $2
+	`, memberID, householdID).Scan(&member.ID, &member.HouseholdID, &member.Name)
 	return member, err
 }
 
@@ -345,7 +350,7 @@ func (s *PostgresStore) personalIncome(ctx context.Context, snapshotID int64, me
 	return domain.Money(amount), err
 }
 
-func (s *PostgresStore) budgetItems(ctx context.Context, snapshotID int64, memberID int64) ([]domain.BudgetItem, error) {
+func (s *PostgresStore) budgetItems(ctx context.Context, snapshotID int64, memberID int64) ([]legacybudget.BudgetItem, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT i.id, i.member_id, c.id, c.name, c.kind, i.label, i.amount_pence
 		FROM budget_items i
@@ -358,9 +363,9 @@ func (s *PostgresStore) budgetItems(ctx context.Context, snapshotID int64, membe
 	}
 	defer rows.Close()
 
-	var items []domain.BudgetItem
+	var items []legacybudget.BudgetItem
 	for rows.Next() {
-		var item domain.BudgetItem
+		var item legacybudget.BudgetItem
 		var amount int64
 		if err := rows.Scan(&item.ID, &item.MemberID, &item.CategoryID, &item.Category, &item.Kind, &item.Label, &amount); err != nil {
 			return nil, err
@@ -371,7 +376,7 @@ func (s *PostgresStore) budgetItems(ctx context.Context, snapshotID int64, membe
 	return items, rows.Err()
 }
 
-func (s *PostgresStore) allocationRules(ctx context.Context, snapshotID int64, memberID int64) ([]domain.AllocationRule, error) {
+func (s *PostgresStore) allocationRules(ctx context.Context, snapshotID int64, memberID int64) ([]legacybudget.AllocationRule, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, member_id, label, percent, amount_pence
 		FROM allocation_rules
@@ -383,9 +388,9 @@ func (s *PostgresStore) allocationRules(ctx context.Context, snapshotID int64, m
 	}
 	defer rows.Close()
 
-	var rules []domain.AllocationRule
+	var rules []legacybudget.AllocationRule
 	for rows.Next() {
-		var rule domain.AllocationRule
+		var rule legacybudget.AllocationRule
 		var amount int64
 		if err := rows.Scan(&rule.ID, &rule.MemberID, &rule.Label, &rule.Percent, &amount); err != nil {
 			return nil, err
@@ -396,7 +401,7 @@ func (s *PostgresStore) allocationRules(ctx context.Context, snapshotID int64, m
 	return rules, rows.Err()
 }
 
-func (s *PostgresStore) jointWages(ctx context.Context, snapshotID int64) ([]domain.IncomeEntry, error) {
+func (s *PostgresStore) jointWages(ctx context.Context, snapshotID int64) ([]legacybudget.IncomeEntry, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT e.id, e.member_id, e.label, e.amount_pence
 		FROM income_entries e
@@ -408,9 +413,9 @@ func (s *PostgresStore) jointWages(ctx context.Context, snapshotID int64) ([]dom
 	}
 	defer rows.Close()
 
-	var wages []domain.IncomeEntry
+	var wages []legacybudget.IncomeEntry
 	for rows.Next() {
-		var wage domain.IncomeEntry
+		var wage legacybudget.IncomeEntry
 		var memberID *int64
 		var amount int64
 		if err := rows.Scan(&wage.ID, &memberID, &wage.Label, &amount); err != nil {
@@ -425,7 +430,7 @@ func (s *PostgresStore) jointWages(ctx context.Context, snapshotID int64) ([]dom
 	return wages, rows.Err()
 }
 
-func (s *PostgresStore) jointItems(ctx context.Context, snapshotID int64) ([]domain.JointAccountItem, error) {
+func (s *PostgresStore) jointItems(ctx context.Context, snapshotID int64) ([]legacybudget.JointAccountItem, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, label, amount_pence
 		FROM joint_account_items
@@ -437,9 +442,9 @@ func (s *PostgresStore) jointItems(ctx context.Context, snapshotID int64) ([]dom
 	}
 	defer rows.Close()
 
-	var items []domain.JointAccountItem
+	var items []legacybudget.JointAccountItem
 	for rows.Next() {
-		var item domain.JointAccountItem
+		var item legacybudget.JointAccountItem
 		var amount int64
 		if err := rows.Scan(&item.ID, &item.Label, &amount); err != nil {
 			return nil, err
@@ -450,7 +455,7 @@ func (s *PostgresStore) jointItems(ctx context.Context, snapshotID int64) ([]dom
 	return items, rows.Err()
 }
 
-func (s *PostgresStore) jointContributions(ctx context.Context, snapshotID int64) ([]domain.JointContribution, error) {
+func (s *PostgresStore) jointContributions(ctx context.Context, snapshotID int64) ([]legacybudget.JointContribution, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT c.member_id, m.name, c.amount_pence
 		FROM joint_account_contributions c
@@ -463,9 +468,9 @@ func (s *PostgresStore) jointContributions(ctx context.Context, snapshotID int64
 	}
 	defer rows.Close()
 
-	var contributions []domain.JointContribution
+	var contributions []legacybudget.JointContribution
 	for rows.Next() {
-		var contribution domain.JointContribution
+		var contribution legacybudget.JointContribution
 		var amount int64
 		if err := rows.Scan(&contribution.MemberID, &contribution.Member, &amount); err != nil {
 			return nil, err

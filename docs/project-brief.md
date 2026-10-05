@@ -1,32 +1,13 @@
-# Swaledale Project Brief
+# Swaledale project brief
 
-## Goal
+Build a live, provider-independent household FIRE planning platform using Go, PostgreSQL, Grafana and automated financial ingestion. Start with one household; model any number of members and explicit personal/joint ownership without SaaS tenant/team abstractions.
 
-Transform the household bills spreadsheet into a family finance app that makes the current budget easier to view, edit, and reason about.
+The [FIRE Dashboard Project tab](https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit?gid=944913493#gid=944913493) owns the backlog, account inventory, architecture principle and acceptance criteria. Repository documentation describes implementation; it is not a competing plan.
 
-## Audience
+Stable concepts are households, members, ownership, financial roles, account types, access classes and financial observations. Providers, products, investment instruments held by an account, and connector mechanisms can change independently of account identity.
 
-The first audience is the household: Neil and Katie. The app should feel calm, private, and practical rather than like a generic personal finance SaaS product.
+FIRE-001 delivers canonical Go types, explicit validation and representative tests. It reuses the existing app, auth, PostgreSQL tooling and React foundation. Existing budget endpoints remain usable through an isolated compatibility package; spreadsheet parity is no longer a requirement. Spendable income now means income less committed bills and savings for every member. Joint budget per-person figures use the actual household member count and remain an illustrative equal split, not canonical account ownership.
 
-## MVP Scope
+Later tickets own persistence, provider configuration, baseline ingestion, household/member FIRE calculations and Grafana. React can become the management interface for members, accounts, connectors and assumptions. The fixed development seed is legacy test data, not the financial baseline for FIRE.
 
-- Recreate the spreadsheet budget model in structured app data.
-- Show household summary totals.
-- Show Neil and Katie budget views.
-- Show the joint account and shared household bills.
-- Show runway and emergency fund goals.
-- Allow basic edits to labels and monthly amounts.
-- User registration and sign-in, with data scoped to each household.
-
-## Non-Goals
-
-- Bank imports or Open Banking integrations.
-- Roles or permissions beyond household membership.
-- Transaction-level reconciliation.
-- Production deployment.
-- Live sync back to Google Sheets.
-
-## Source Spreadsheet
-
-https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit
-
+FIRE-001 excludes connector implementations, database migrations, forecasting, tax/pension access rules, transaction categorisation, product optimisation, market data, AWS/Terraform and frontend redesign. Existing authentication and household-scoped application queries are preserved.

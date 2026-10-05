@@ -1,33 +1,21 @@
-# Decision Log
+# Decision log
 
-## Go API + React Frontend
+## 2026-10-05 — FIRE-001 canonical household domain
 
-Decision: Use Go for the API and React for the frontend.
+Swaledale now targets household financial independence planning. The [FIRE Dashboard Project tab](https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit?gid=944913493#gid=944913493) supersedes the old Jira/spreadsheet-parity backlog, which has been removed.
 
-Reason: The project is explicitly a Go learning project, while React keeps the UI flexible for dashboards and inline edits.
+Reuse Go/chi/pgx/PostgreSQL, goose/sqlc tooling, React/Vite, household-scoped authentication, Household, Member and integer Money. No tenant/team abstraction is added. Member now carries the household key already present in PostgreSQL; store reads populate it.
 
-## Postgres As Source Of Truth
+Account identity is independent of providers and instruments. ProviderConnection models effective-dated mappings; Holding models a time-stamped account/instrument relationship. FinancialRole is extensible configuration; AccountType and AccessClass are validated typed values. Pension eligibility ages remain calculation assumptions, not account fields.
 
-Decision: Store POC data in Postgres instead of reading directly from Google Sheets at runtime.
+Ownership uses complete sets of integer basis-point shares, unique owners and household validation. Persistence must version ownership sets before ownership edits are offered. Snapshots retain effective/recording timestamps, currency and provenance; persistence must preserve history and source references.
 
-Reason: The app should become a proper application with structured data, migrations, and testable calculations.
+Money remains integer minor units with explicit currency in Amount. The canonical wire shape is integer minorUnits plus currency. Legacy decimal-GBP JSON is preserved using exact parsing/formatting; floating-point helpers and seed conversions are removed. Quantities use exact decimal strings. No FX engine is introduced.
 
-## Dev-Only POC
+The active budget API types/calculations move to internal/legacybudget. Allocation labels no longer drive calculations, every member's spendable income is income minus committed bills/savings, and per-person budget estimates use actual member count. This intentionally changes spreadsheet-specific spendable figures. No React rewrite or destructive migration is needed. Unused BudgetCategory is removed.
 
-Decision: Do not solve deployment or authentication yet.
+FIRE-003 owns migrations and historical storage constraints; FIRE-024 owns provider configuration; FIRE-005 owns calculations; FIRE-015 owns holdings batch completeness. FIRE-027 tracks eventual budget API/UI retirement and FIRE-028 tracks household scoping of unused sqlc templates before adoption.
 
-Reason: The first milestone is proving spreadsheet parity and the household finance model.
+## Retained foundations and historical decisions
 
-## Fixed Spreadsheet Snapshot
-
-Decision: Seed from the current spreadsheet values once.
-
-Reason: Live sync adds complexity before the core model is useful.
-
-## Future Considerations
-
-- Add authentication before any cloud deployment.
-- Add audit history for budget changes.
-- Decide whether to support Google Sheets import/export.
-- Explore Open Banking only after recurring budget workflows are solid.
-
+Go remains the backend learning focus, React the flexible management UI, and PostgreSQL the structured financial data store. The initial fixed spreadsheet seed remains development-only reference data. Earlier decisions to defer authentication and target spreadsheet parity are superseded: authentication already exists and parity is no longer the objective.

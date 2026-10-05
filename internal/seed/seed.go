@@ -144,10 +144,10 @@ func insertIncome(ctx context.Context, tx pgx.Tx, snapshotID int64, members map[
 		label   string
 		amount  domain.Money
 	}{
-		{member: "Neil", context: "personal", label: "Income", amount: domain.Pounds(3594.88)},
-		{member: "Katie", context: "personal", label: "Bills", amount: domain.Pounds(1913.16)},
-		{member: "Neil", context: "joint", label: "Neil", amount: domain.Pounds(3615.62)},
-		{member: "Katie", context: "joint", label: "Katie", amount: domain.Pounds(1913.36)},
+		{member: "Neil", context: "personal", label: "Income", amount: 359488},
+		{member: "Katie", context: "personal", label: "Bills", amount: 191316},
+		{member: "Neil", context: "joint", label: "Neil", amount: 361562},
+		{member: "Katie", context: "joint", label: "Katie", amount: 191336},
 	}
 	for _, row := range rows {
 		member := members[row.member]
@@ -168,36 +168,36 @@ func insertBudgetItems(ctx context.Context, tx pgx.Tx, snapshotID int64, members
 		label  string
 		amount domain.Money
 	}{
-		{member: "Neil", kind: "bill", label: "Joint Account", amount: domain.Pounds(1100)},
-		{member: "Neil", kind: "bill", label: "Car", amount: domain.Pounds(336.11)},
-		{member: "Neil", kind: "bill", label: "Credit Card", amount: domain.Pounds(0)},
-		{member: "Neil", kind: "bill", label: "David Lloyd", amount: domain.Pounds(189)},
-		{member: "Neil", kind: "bill", label: "NUFC", amount: domain.Pounds(63.62)},
-		{member: "Neil", kind: "bill", label: "Car Insurance", amount: domain.Pounds(21.10)},
-		{member: "Neil", kind: "bill", label: "Car Tax", amount: domain.Pounds(17.06)},
-		{member: "Neil", kind: "bill", label: "Phone", amount: domain.Pounds(29.96)},
-		{member: "Neil", kind: "bill", label: "Spotify", amount: domain.Pounds(14.99)},
-		{member: "Neil", kind: "bill", label: "O2", amount: domain.Pounds(9.79)},
-		{member: "Neil", kind: "bill", label: "Strava", amount: domain.Pounds(8.99)},
-		{member: "Neil", kind: "bill", label: "Amazon Prime", amount: domain.Pounds(8.99)},
-		{member: "Neil", kind: "bill", label: "BattleNet", amount: domain.Pounds(8.99)},
-		{member: "Neil", kind: "saving", label: "Emergency Fund", amount: domain.Pounds(300)},
-		{member: "Neil", kind: "saving", label: "Vanguard ISA", amount: domain.Pounds(500)},
-		{member: "Neil", kind: "saving", label: "Vanguard SIPP", amount: domain.Pounds(200)},
-		{member: "Neil", kind: "saving", label: "Joint Savings", amount: domain.Pounds(100)},
-		{member: "Neil", kind: "saving", label: "Personal Savings", amount: domain.Pounds(0)},
-		{member: "Katie", kind: "bill", label: "Joint Savings", amount: domain.Pounds(0)},
-		{member: "Katie", kind: "saving", label: "Savings", amount: domain.Pounds(300)},
-		{member: "Katie", kind: "bill", label: "Car Tax", amount: domain.Pounds(14.43)},
-		{member: "Katie", kind: "bill", label: "Gym", amount: domain.Pounds(29.99)},
-		{member: "Katie", kind: "bill", label: "Car Insurance", amount: domain.Pounds(28)},
-		{member: "Katie", kind: "bill", label: "Joint Account", amount: domain.Pounds(850)},
-		{member: "Katie", kind: "bill", label: "Phone", amount: domain.Pounds(9.79)},
-		{member: "Katie", kind: "bill", label: "Spotify", amount: domain.Pounds(21.99)},
-		{member: "Katie", kind: "bill", label: "Credit card", amount: domain.Pounds(47.94)},
-		{member: "Katie", kind: "bill", label: "Uber One", amount: domain.Pounds(4.99)},
-		{member: "Katie", kind: "bill", label: "Dentist loan", amount: domain.Pounds(53.20)},
-		{member: "Katie", kind: "bill", label: "Petrol", amount: domain.Pounds(50)},
+		{member: "Neil", kind: "bill", label: "Joint Account", amount: 110000},
+		{member: "Neil", kind: "bill", label: "Car", amount: 33611},
+		{member: "Neil", kind: "bill", label: "Credit Card", amount: 0},
+		{member: "Neil", kind: "bill", label: "David Lloyd", amount: 18900},
+		{member: "Neil", kind: "bill", label: "NUFC", amount: 6362},
+		{member: "Neil", kind: "bill", label: "Car Insurance", amount: 2110},
+		{member: "Neil", kind: "bill", label: "Car Tax", amount: 1706},
+		{member: "Neil", kind: "bill", label: "Phone", amount: 2996},
+		{member: "Neil", kind: "bill", label: "Spotify", amount: 1499},
+		{member: "Neil", kind: "bill", label: "O2", amount: 979},
+		{member: "Neil", kind: "bill", label: "Strava", amount: 899},
+		{member: "Neil", kind: "bill", label: "Amazon Prime", amount: 899},
+		{member: "Neil", kind: "bill", label: "BattleNet", amount: 899},
+		{member: "Neil", kind: "saving", label: "Emergency Fund", amount: 30000},
+		{member: "Neil", kind: "saving", label: "Vanguard ISA", amount: 50000},
+		{member: "Neil", kind: "saving", label: "Vanguard SIPP", amount: 20000},
+		{member: "Neil", kind: "saving", label: "Joint Savings", amount: 10000},
+		{member: "Neil", kind: "saving", label: "Personal Savings", amount: 0},
+		{member: "Katie", kind: "bill", label: "Joint Savings", amount: 0},
+		{member: "Katie", kind: "saving", label: "Savings", amount: 30000},
+		{member: "Katie", kind: "bill", label: "Car Tax", amount: 1443},
+		{member: "Katie", kind: "bill", label: "Gym", amount: 2999},
+		{member: "Katie", kind: "bill", label: "Car Insurance", amount: 2800},
+		{member: "Katie", kind: "bill", label: "Joint Account", amount: 85000},
+		{member: "Katie", kind: "bill", label: "Phone", amount: 979},
+		{member: "Katie", kind: "bill", label: "Spotify", amount: 2199},
+		{member: "Katie", kind: "bill", label: "Credit card", amount: 4794},
+		{member: "Katie", kind: "bill", label: "Uber One", amount: 499},
+		{member: "Katie", kind: "bill", label: "Dentist loan", amount: 5320},
+		{member: "Katie", kind: "bill", label: "Petrol", amount: 5000},
 	}
 	for _, row := range rows {
 		member := members[row.member]
@@ -222,13 +222,13 @@ func insertAllocations(ctx context.Context, tx pgx.Tx, snapshotID int64, members
 		percent int
 		amount  domain.Money
 	}{
-		{member: "Neil", label: "10% - PYF", percent: 10, amount: domain.Pounds(359.49)},
-		{member: "Neil", label: "20% - Debts / Investment", percent: 20, amount: domain.Pounds(718.98)},
-		{member: "Neil", label: "70% - Living Expenses", percent: 70, amount: domain.Pounds(2516.42)},
-		{member: "Neil", label: "Spendable Income", percent: 0, amount: domain.Pounds(707.82)},
-		{member: "Katie", label: "Bills/Expenses - 50%", percent: 50, amount: domain.Pounds(956.58)},
-		{member: "Katie", label: "Spendable Income - 30%", percent: 30, amount: domain.Pounds(573.95)},
-		{member: "Katie", label: "Savings/Investment - 20%", percent: 20, amount: domain.Pounds(382.63)},
+		{member: "Neil", label: "10% - PYF", percent: 10, amount: 35949},
+		{member: "Neil", label: "20% - Debts / Investment", percent: 20, amount: 71898},
+		{member: "Neil", label: "70% - Living Expenses", percent: 70, amount: 251642},
+		{member: "Neil", label: "Spendable Income", percent: 0, amount: 70782},
+		{member: "Katie", label: "Bills/Expenses - 50%", percent: 50, amount: 95658},
+		{member: "Katie", label: "Spendable Income - 30%", percent: 30, amount: 57395},
+		{member: "Katie", label: "Savings/Investment - 20%", percent: 20, amount: 38263},
 	}
 	for _, row := range rows {
 		member := members[row.member]
@@ -250,12 +250,12 @@ func insertGoals(ctx context.Context, tx pgx.Tx, snapshotID int64, members map[s
 		current domain.Money
 		notes   string
 	}{
-		{owner: "Neil", name: "Runway Goal (Bills x 3 Months)", target: domain.Pounds(5425.80), notes: "Neil bills x 3 months"},
-		{owner: "Neil", name: "Emergency Fund", target: domain.Pounds(5000), notes: "Cash emergency fund target"},
-		{owner: "Neil", name: "Runway + Emergency", target: domain.Pounds(10425.80), notes: "Runway plus emergency target"},
-		{owner: "Katie", name: "Runway Goal (Bills x 3 Months)", target: domain.Pounds(3330.99), notes: "Katie bills x 3 months"},
-		{owner: "Katie", name: "Emergency Fund", target: domain.Pounds(5000), notes: "Cash emergency fund target"},
-		{owner: "Katie", name: "Runway + Emergency", target: domain.Pounds(8330.99), notes: "Runway plus emergency target"},
+		{owner: "Neil", name: "Runway Goal (Bills x 3 Months)", target: 542580, notes: "Neil bills x 3 months"},
+		{owner: "Neil", name: "Emergency Fund", target: 500000, notes: "Cash emergency fund target"},
+		{owner: "Neil", name: "Runway + Emergency", target: 1042580, notes: "Runway plus emergency target"},
+		{owner: "Katie", name: "Runway Goal (Bills x 3 Months)", target: 333099, notes: "Katie bills x 3 months"},
+		{owner: "Katie", name: "Emergency Fund", target: 500000, notes: "Cash emergency fund target"},
+		{owner: "Katie", name: "Runway + Emergency", target: 833099, notes: "Runway plus emergency target"},
 	}
 	for _, row := range rows {
 		member := members[row.owner]
@@ -298,18 +298,18 @@ func insertJointAccount(ctx context.Context, tx pgx.Tx, snapshotID int64, member
 		label  string
 		amount domain.Money
 	}{
-		{label: "Mortgage", amount: domain.Pounds(1199.27)},
-		{label: "Council Tax", amount: domain.Pounds(179)},
-		{label: "Shopping", amount: domain.Pounds(150)},
-		{label: "Gas / Electric", amount: domain.Pounds(100.42)},
-		{label: "Water", amount: domain.Pounds(60.41)},
-		{label: "Sofa", amount: domain.Pounds(51.75)},
-		{label: "Internet", amount: domain.Pounds(35.06)},
-		{label: "House Insurance", amount: domain.Pounds(18.75)},
-		{label: "Life Cover", amount: domain.Pounds(17.89)},
-		{label: "TV", amount: domain.Pounds(15.03)},
-		{label: "Window Cleaner", amount: domain.Pounds(16)},
-		{label: "Pet Insurance", amount: domain.Pounds(8.81)},
+		{label: "Mortgage", amount: 119927},
+		{label: "Council Tax", amount: 17900},
+		{label: "Shopping", amount: 15000},
+		{label: "Gas / Electric", amount: 10042},
+		{label: "Water", amount: 6041},
+		{label: "Sofa", amount: 5175},
+		{label: "Internet", amount: 3506},
+		{label: "House Insurance", amount: 1875},
+		{label: "Life Cover", amount: 1789},
+		{label: "TV", amount: 1503},
+		{label: "Window Cleaner", amount: 1600},
+		{label: "Pet Insurance", amount: 881},
 	}
 	for _, item := range items {
 		if _, err := tx.Exec(ctx, `
@@ -324,8 +324,8 @@ func insertJointAccount(ctx context.Context, tx pgx.Tx, snapshotID int64, member
 		member string
 		amount domain.Money
 	}{
-		{member: "Neil", amount: domain.Pounds(1000)},
-		{member: "Katie", amount: domain.Pounds(850)},
+		{member: "Neil", amount: 100000},
+		{member: "Katie", amount: 85000},
 	}
 	for _, contribution := range contributions {
 		member := members[contribution.member]

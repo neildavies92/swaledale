@@ -2,14 +2,14 @@
 
 ## Decision
 
-Swaledale uses a Go API, React frontend, and Postgres database for the POC.
+Swaledale uses a Go API, React frontend, and Postgres database for household FIRE planning.
 
 ## Rationale
 
 - Go is the learning focus for the backend.
 - Postgres gives the project a real relational data model from the start.
 - React keeps the UI flexible without making the Go app responsible for all interaction state.
-- A dev-only POC avoids deployment and auth complexity until the household model is proven.
+- Preserve the working local stack and household-scoped authentication while evolving the domain.
 
 ## Backend
 
@@ -27,7 +27,7 @@ Swaledale uses a Go API, React frontend, and Postgres database for the POC.
 
 ## Deferred Decisions
 
-- Authentication approach.
+- Grafana integration (FIRE-002/FIRE-006); React remains available for management.
 - Deployment target.
 - Bank import strategy.
-- Whether Google Sheets remains an import source after the POC.
+- Google Sheets collection is tracked in FIRE-007.
