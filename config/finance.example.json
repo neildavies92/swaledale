@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "members": [
+    {
+      "key": "member_a",
+      "name": "Example member A"
+    },
+    {
+      "key": "member_b",
+      "name": "Example member B"
+    },
+    {
+      "key": "member_c",
+      "name": "Example member C"
+    }
+  ],
+  "providers": [
+    {
+      "key": "bank_a",
+      "name": "Example Bank A"
+    },
+    {
+      "key": "bank_b",
+      "name": "Example Bank B"
+    },
+    {
+      "key": "platform_a",
+      "name": "Example Investment Platform"
+    },
+    {
+      "key": "pension_a",
+      "name": "Example Workplace Pension Provider"
+    }
+  ],
+  "connectors": [
+    "manual",
+    "file_import"
+  ],
+  "accounts": [
+    {
+      "key": "salary",
+      "name": "Salary account",
+      "type": "current",
+      "role": "salary",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "household_bills",
+      "name": "Household bills",
+      "type": "current",
+      "role": "joint_bills",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 6000
+        },
+        {
+          "member": "member_b",
+          "shareBasisPoints": 2500
+        },
+        {
+          "member": "member_c",
+          "shareBasisPoints": 1500
+        }
+      ]
+    },
+    {
+      "key": "personal_savings",
+      "name": "Personal savings",
+      "type": "savings",
+      "role": "short_term_savings",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_b",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "credit_card",
+      "name": "Credit card",
+      "type": "credit_card",
+      "role": "spending",
+      "access": "liability",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "rewards_card",
+      "name": "Rewards card",
+      "type": "credit_card",
+      "role": "spending",
+      "access": "liability",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_b",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "emergency_fund",
+      "name": "Emergency fund",
+      "type": "savings",
+      "role": "emergency_fund",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "personal_spending",
+      "name": "Discretionary spending",
+      "type": "current",
+      "role": "spending",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "joint_savings",
+      "name": "Joint savings",
+      "type": "savings",
+      "role": "joint_savings",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 7000
+        },
+        {
+          "member": "member_b",
+          "shareBasisPoints": 3000
+        }
+      ]
+    },
+    {
+      "key": "stocks_and_shares_isa",
+      "name": "Stocks and Shares ISA",
+      "type": "stocks_and_shares_isa",
+      "role": "isa_bridge",
+      "access": "accessible",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "sipp",
+      "name": "SIPP",
+      "type": "sipp",
+      "role": "pension",
+      "access": "pension_restricted",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_a",
+          "shareBasisPoints": 10000
+        }
+      ]
+    },
+    {
+      "key": "workplace_pension",
+      "name": "Workplace pension",
+      "type": "workplace_pension",
+      "role": "pension",
+      "access": "pension_restricted",
+      "currency": "GBP",
+      "owners": [
+        {
+          "member": "member_b",
+          "shareBasisPoints": 10000
+        }
+      ]
+    }
+  ],
+  "bindings": [
+    {
+      "key": "salary_initial",
+      "account": "salary",
+      "provider": "bank_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "household_bills_initial",
+      "account": "household_bills",
+      "provider": "bank_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "personal_savings_initial",
+      "account": "personal_savings",
+      "provider": "bank_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "credit_card_initial",
+      "account": "credit_card",
+      "provider": "bank_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "rewards_card_initial",
+      "account": "rewards_card",
+      "provider": "bank_b",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "emergency_fund_initial",
+      "account": "emergency_fund",
+      "provider": "bank_b",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "personal_spending_initial",
+      "account": "personal_spending",
+      "provider": "bank_b",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "joint_savings_initial",
+      "account": "joint_savings",
+      "provider": "bank_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "stocks_and_shares_isa_initial",
+      "account": "stocks_and_shares_isa",
+      "provider": "platform_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "sipp_initial",
+      "account": "sipp",
+      "provider": "platform_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    },
+    {
+      "key": "workplace_pension_initial",
+      "account": "workplace_pension",
+      "provider": "pension_a",
+      "connector": "manual",
+      "product": "Example product",
+      "validFrom": "2026-01-01T00:00:00Z"
+    }
+  ]
+}

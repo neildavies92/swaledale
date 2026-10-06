@@ -1,5 +1,16 @@
 # Decision log
 
+## 2026-10-06 — FIRE-024 provider-independent configuration
+
+Add a dedicated internal/financeconfig package using versioned JSON and the standard library. Infrastructure settings remain in internal/config. Members/providers/accounts/bindings have stable configuration aliases; connectors are extensible declared keys. Account definitions contain canonical typed attributes and basis-point owner references. Provider bindings remain separate effective-dated definitions, with one active binding per account at a time.
+
+Extract Account.ValidateDefinition and ValidateOwnershipShares from existing canonical validation to support pre-persistence definitions without fabricated numeric IDs. Full account/ownership/provider-connection validation still applies when IDs exist; no FIRE-001 identity invariant is weakened.
+
+Resolve requires explicit persisted IDs and private external-account identities keyed by binding. It produces canonical values without DB, connector, API or secret-management implementation. Provider migration closes one binding and adds another while keeping the same account key/ID and ownership. Historical alias persistence, idempotent bootstrap, ownership versioning and transactional overlap constraints belong to FIRE-003. FIRE-027/028 remain unchanged.
+
+The committed example is synthetic and covers eleven account classes/purposes and three members. Ignore local/private finance JSON paths. No real external account identifiers, credentials or balances are added. Strict decoding rejects unknown/duplicate fields, nulls, malformed input and invalid references; deterministic validation checks ownership and binding periods. No configuration framework dependency is needed.
+
+
 ## 2026-10-05 — FIRE-001 canonical household domain
 
 Swaledale now targets household financial independence planning. The [FIRE Dashboard Project tab](https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit?gid=944913493#gid=944913493) supersedes the old Jira/spreadsheet-parity backlog, which has been removed.

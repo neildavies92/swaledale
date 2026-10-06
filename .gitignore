@@ -25,3 +25,7 @@ frontend/dist/
 frontend/node_modules/
 frontend/*.tsbuildinfo
 frontend/vite.config.js
+
+# Private household configuration and runtime identity files
+/config/finance.local*.json
+/config/finance.private*.json

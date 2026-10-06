@@ -128,3 +128,13 @@ func TestProviderChangePreservesAccountAndHistory(t *testing.T) {
 		t.Run(name, func(t *testing.T) { p := old; mutate(&p); mustInvalid(t, p.Validate(a, providers[0])) })
 	}
 }
+
+func TestDefinitionValidationDoesNotReplaceIdentityValidation(t *testing.T) {
+	a := testAccount(AccountSavings, AccessAccessible)
+	a.ID = 0
+	a.HouseholdID = 0
+	mustValid(t, a.ValidateDefinition())
+	mustInvalid(t, a.Validate())
+	a.Access = AccessLiability
+	mustInvalid(t, a.ValidateDefinition())
+}
