@@ -63,8 +63,17 @@ type Account struct {
 }
 
 func (a Account) Validate() error {
-	if a.ID <= 0 || a.HouseholdID <= 0 || strings.TrimSpace(a.Name) == "" || strings.TrimSpace(string(a.Role)) == "" {
-		return fmt.Errorf("account requires positive identity, household, name and role")
+	if a.ID <= 0 || a.HouseholdID <= 0 {
+		return fmt.Errorf("account requires positive identity and household")
+	}
+	return a.ValidateDefinition()
+}
+
+// ValidateDefinition checks account attributes before internal IDs are resolved.
+// It does not establish identity or replace Validate at a persistence boundary.
+func (a Account) ValidateDefinition() error {
+	if strings.TrimSpace(a.Name) == "" || strings.TrimSpace(string(a.Role)) == "" {
+		return fmt.Errorf("account requires name and role")
 	}
 	if err := a.Currency.Validate(); err != nil {
 		return err
@@ -111,17 +120,30 @@ func ValidateOwnership(account Account, owners []AccountOwnership, members []Mem
 		}
 		known[m.ID] = m.HouseholdID
 	}
-	total := 0
+	shares := make([]int, 0, len(owners))
 	seen := make(map[int64]bool, len(owners))
 	for _, o := range owners {
 		if o.AccountID != account.ID || o.MemberID <= 0 || known[o.MemberID] != account.HouseholdID {
 			return fmt.Errorf("ownership must reference this account and a member of its household")
 		}
-		if seen[o.MemberID] || o.ShareBasisPoints <= 0 || o.ShareBasisPoints > FullOwnership {
-			return fmt.Errorf("ownership requires unique members and shares in 1..10000")
+		if seen[o.MemberID] {
+			return fmt.Errorf("ownership requires unique members")
 		}
 		seen[o.MemberID] = true
-		total += o.ShareBasisPoints
+		shares = append(shares, o.ShareBasisPoints)
+	}
+	return ValidateOwnershipShares(shares)
+}
+
+// ValidateOwnershipShares checks the numeric part of a complete ownership set.
+// Callers must also validate unique owners and their account/household references.
+func ValidateOwnershipShares(shares []int) error {
+	total := 0
+	for _, share := range shares {
+		if share <= 0 || share > FullOwnership {
+			return fmt.Errorf("ownership shares must be in 1..10000")
+		}
+		total += share
 		if total > FullOwnership {
 			return fmt.Errorf("ownership exceeds 100%%")
 		}

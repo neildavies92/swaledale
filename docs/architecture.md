@@ -74,6 +74,61 @@ BalanceSnapshot, Holding and Transaction require account association, matching c
 
 FIRESnapshot validates scope against household members, metric currencies, timestamps, nonnegative component totals, optional target/progress and nonblank calculation/assumptions references. These references must identify retained immutable calculation inputs/configuration in the later engine. Formula correctness, input balance selection and completeness/staleness checks belong to FIRE-005. A derived result does not itself provide an audit trail of every input record.
 
+## Financial configuration (FIRE-024)
+
+`internal/financeconfig` is the boundary between human-managed definitions and canonical domain values. Infrastructure environment settings remain in `internal/config`. The financial package loads files only when explicitly asked; it does not read environment variables, access PostgreSQL, implement connectors, change the running API or calculate FIRE.
+
+Version 1 uses JSON and Go's standard library, with no new dependency. [The committed example](../config/finance.example.json) contains generic providers, three synthetic members and eleven accounts covering salary/current, joint bills, savings, cards, emergency fund, spending, joint savings, ISA, SIPP and workplace pension. It contains no balances, account numbers, external IDs or credentials. All dates are illustrative.
+
+| JSON field | Meaning |
+| --- | --- |
+| `version` | Required integer `1`; unsupported versions are rejected. |
+| `members` | Nonempty list of `{key, name}` definitions. Names are display text, never references. |
+| `providers` | List of `{key, name}` definitions. Provider names have no effect on behaviour. |
+| `connectors` | List of extensible keys, e.g. `manual`, `file_import`. These are declared selections, not implementations or proof of runtime availability. |
+| `accounts` | Nonempty list of `{key, name, type, role, access, currency, owners}`. Canonical field types/values come from domain. |
+| `owners` | Complete list of `{member, shareBasisPoints}` references for that account. Unique members, each share 1..10,000, total exactly 10,000. |
+| `bindings` | List of `{key, account, provider, connector, product?, validFrom, validTo?}`. RFC3339 timestamps; omitted validTo means open-ended. |
+
+Keys match `[a-z][a-z0-9_]{0,63}` and are unique within each entity kind. Arrays make definitions readable; duplicate keys are rejected rather than overwritten. Every owner/member and binding/account/provider/connector reference must exist. Accounts may be unbound while awaiting setup; unused provider/connector declarations are permitted. Members/accounts must be nonempty; optional empty collections can be omitted or written as `[]`.
+
+`Load(io.Reader)` and `LoadFile(path)` return a validated `Config` or a zero result plus error. They reject unknown fields, duplicate JSON object fields (including escaped names/case variants), nulls, malformed or multiple documents, invalid UTF-8, fractional shares, input over 1 MiB and nesting over 32 levels. Optional fields must be omitted rather than null. Go's JSON decoder accepts case-insensitive field-name matches; use the documented camelCase spelling. Errors identify the definition/reference where possible. Configuration is returned in input order; validation never mutates it.
+
+`Config.Validate` also validates programmatically constructed values. It calls `Account.ValidateDefinition` and `ValidateOwnershipShares`, small extractions of FIRE-001 rules, so it never invents account/member numeric IDs to validate definitions. Full `Account.Validate`, `ValidateOwnership` and `ProviderConnection.Validate` still enforce canonical identity requirements. Currency validation retains FIRE-001's three-uppercase-letter shape rule; actual supported currency registries/exponents remain future connector/runtime policy. FinancialRole remains an extensible nonblank value.
+
+### Keys and explicit resolution
+
+An account key such as `joint_savings` is a persisted alias to establish later, not an AccountID. Neither array position, provider name nor a hash determines numeric IDs. Configuration keys are scoped to the target household; no new tenant concept is introduced.
+
+```go
+cfg, err := financeconfig.LoadFile("config/finance.local.json")
+if err != nil {
+    return err
+}
+// Supplied by a future trusted persistence/bootstrap caller:
+// identities: financeconfig.Identities with HouseholdID and key-to-ID maps
+// privateExternalAccounts: map[financeconfig.Key]string keyed by binding key
+resolved, err := cfg.Resolve(identities, privateExternalAccounts)
+```
+
+`Resolve` is a pure conversion to canonical Members, Providers, Accounts, AccountOwnership rows and ProviderConnections, returned in maps retaining their configuration keys. It requires positive caller-supplied IDs for every configured member/provider/account/binding, unique IDs within each kind, and a nonblank private external ID for every binding. Unexpected alias/private-identity keys are rejected; no partial result is returned on failure. It calls full canonical validation after resolving identities. It does not allocate IDs, verify database existence, authorize access or persist anything. The trusted caller must resolve all aliases within the authenticated household and enforce database constraints.
+
+A `ProviderBinding` is intentionally incomplete configuration, not a supposedly valid ProviderConnection. The binding key is also the private external-identity lookup reference, so an extra external-account field/ref is unnecessary. A manual definition can load without a private identity. If it has a binding, resolving that binding still requires a real private external identity, consistent with the existing domain invariant. No placeholder is generated.
+
+### Provider replacement and history
+
+An account's definition and owner set remain unchanged during provider replacement. Close its prior binding at time T and add a **new binding key** for the replacement provider/product/connector starting at T. Retain the prior key and its persisted connection ID for historical observations. Supply a new connection ID/private external identity for the new binding, while resolving the same account key to the same AccountID. Tests resolve both configurations into domain values and preserve a prior BalanceSnapshot's account/source links.
+
+Intervals are `[validFrom, validTo)` and must have positive duration. Version 1 permits only one provider binding per account at any instant, including across different connectors. Adjacent intervals and unbound gaps are valid; open-ended or overlapping intervals are rejected regardless of input order. Parallel sources would require an explicit later policy. The loader does not select a current binding using the wall clock.
+
+Once persisted, editing an existing binding key to describe a different provider would rewrite history; FIRE-003 must compare against stored state and reject such reuse. Configuration validation alone cannot detect changes to previously loaded files. Persist member/provider/account/binding aliases, ownership versions and mapping history transactionally, scoped to the household. Renaming keys must be an explicit alias migration, not delete-and-recreate. Reload/bootstrap must be idempotent and must not silently delete absent historical records. Connectors must also check whether a declared key has an installed implementation before collection; no connector runs in this package.
+
+### Privacy boundary
+
+Committed configuration is synthetic only. Use ignored `config/finance.local*.json` or `config/finance.private*.json` paths for local files, or keep private files outside the repository. Real external IDs enter only through the runtime map supplied to Resolve; the public configuration format has no field for them. No file reader for private identities or secret infrastructure is introduced in FIRE-024. Credentials belong in later secure connector/runtime facilities and are never arguments to Resolve.
+
+Resolved ProviderConnections contain private external identifiers, so do not serialize them into committed fixtures or log whole results. Errors from resolution do not include external-identity values. An ignored filename and a strict schema do not sanitize arbitrary names/product strings: review files before committing and never place sensitive identifiers or values in display fields. Existing legacy fixture data is outside this ticket and is not used for canonical bootstrap.
+
 ## FIRE-003 persistence boundary
 
 Do not rewrite migrations 0001/0002. Add tables for accounts, ownership versions/rows, providers, provider connections, balance snapshots, instruments/identifier mappings, holdings, transactions and FIRE snapshots using the existing household/member keys. Keep auth tables intact.
@@ -84,7 +139,7 @@ Database/service responsibilities deliberately not enforced by a single record's
 
 - Actual household/account/member/provider/instrument/connection existence, authentication and foreign-key enforcement.
 - Composite household constraints so ownership and FIRE member scope cannot cross households.
-- Atomic ownership-set totals, effective ownership intervals and mapping-overlap policy. Do not simply update past shares.
+- Atomic ownership-set totals and effective ownership intervals; enforce FIRE-024's non-overlapping provider-binding intervals in storage. Do not simply update past shares.
 - Source connection belongs to the observation account and was valid at effective time, even if now closed; retain referenced mappings.
 - Provider/connector-scoped external-ID uniqueness, replay/idempotency and correction semantics (a correction adds provenance, never silently overwrites history).
 - Complete holdings observations: a later full portfolio needs a batch/completeness boundary so absent/sold instruments do not remain as stale holdings. FIRE-015 owns ingestion semantics; never sum the latest row of each instrument without this boundary.

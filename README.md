@@ -6,7 +6,13 @@ The canonical Go domain now models explicit ownership, stable accounts, replacea
 
 The [FIRE Dashboard Project tab](https://docs.google.com/spreadsheets/d/1pStlDjjlz6qp1908SJvJVThnQWj3SH0DzKO70mDza4g/edit?gid=944913493#gid=944913493) is the authoritative backlog and architecture plan.
 
-FIRE-001 defines and validates the domain. FIRE persistence (FIRE-003), configuration (FIRE-024), collectors, calculations and Grafana remain future work. The running React/API screens still serve the earlier budget workflow through `internal/legacybudget`; they are not yet a FIRE dashboard. React is retained for future household/account/connector management.
+FIRE-001 defines and validates the domain. FIRE-024 adds validated, provider-independent JSON financial configuration. FIRE persistence (FIRE-003), collectors, calculations and Grafana remain future work. The running React/API screens still serve the earlier budget workflow through `internal/legacybudget`; they are not yet a FIRE dashboard. React is retained for future household/account/connector management.
+
+## Financial configuration
+
+[config/finance.example.json](config/finance.example.json) is synthetic configuration covering the current account classes. `internal/financeconfig` loads and validates it without contacting a database or provider. Account keys and ownership stay stable when provider bindings change. Actual database IDs and private external account identities are supplied separately when resolving canonical values.
+
+See [financial configuration and resolution](docs/architecture.md#financial-configuration-fire-024) for the schema, Go usage, provider migrations and privacy boundary. Local copies matching `config/finance.local*.json` or `config/finance.private*.json` are ignored by Git. The API does not automatically load this configuration yet; FIRE-003 owns persistence/bootstrap integration.
 
 ## Stack
 
